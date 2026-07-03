@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lyc游戏118</title>
+    <style>
+        :root {
+            --bg-deep: #0a0a14;
+            --cthulhu-primary: #1a4a2a;
+            --cthulhu-accent: #5cb870;
+            --cthulhu-glow: rgba(70, 180, 90, 0.4);
+            --pirate-primary: #3d2613;
+            --pirate-accent: #d4a540;
+            --pirate-glow: rgba(220, 160, 50, 0.4);
+            --card-bg: #1c1c2e;
+            --text-dim: #b0b0b8;
+            --text-bright: #f0e6d0;
+            --gold: #c9a84c;
+            --danger: #e74c3c;
+            --info: #5dade2;
+            --slot-empty: rgba(255, 255, 255, 0.05);
+            --slot-border: rgba(255, 255, 255, 0.2);
+            --highlight: #f39c12;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: radial-gradient(ellipse at center, #12122a 0%, #050510 100%);
+            font-family: 'Segoe UI', 'Noto Serif SC', '楷体', serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 15px;
+            background-attachment: fixed;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 1200px;
+            min-width: 780px;
+            background: linear-gradient(180deg, rgba(20,20,42,0.95) 0%, rgba(14,14,28,0.98) 50%, rgba(20,20,42,0.95) 100%);
+            border-radius: 28px;
+            border: 2px solid #3a3a5a;
+            padding: 20px 24px;
+            position: relative;
+            box-shadow: 0 0 80px rgba(0,0,0,0.7), 0 0 200px rgba(30,20,70,0.4);
+            backdrop-filter: blur(4px);
+        }
+        #game-container::before {
+            content: '';
+            position: absolute;
+            top:0;left:0;width:100%;height:100%;
+            border-radius:28px;
+            pointer-events:none;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" opacity="0.06"><path d="M20 50 Q60 20 100 50 T180 50" stroke="%2388aacc" fill="none" stroke-width="1"/><circle cx="150" cy="40" r="3" fill="%2388aacc"/></svg>') repeat;
+            z-index:0;
+        }
+        #game-container>* { position:relative; z-index:1; }
+
+        /* 菜单覆盖层 */
+        #menu-overlay {
+            position: absolute;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(10,10,22,0.92);
+            border-radius:28px;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            z-index:50;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.5s;
+        }
+        #menu-overlay.hidden { opacity:0; pointer-events:none; }
+        .menu-title {
+            font-size: 2.4em;
+            color: #c9a84c;
+            text-shadow:0 0 25px rgba(200,160,60,0.8);
+            letter-spacing:4px;
+            margin-bottom:10px;
+            font-family:'Georgia',serif;
+        }
+        .menu-subtitle { color:#8899aa; font-style:italic; margin-bottom:30px; }
+        .menu-btn {
+            padding: 14px 40px;
+            margin: 10px;
+            font-size:1.1em;
+            border-radius:40px;
+            cursor:pointer;
+            font-weight:bold;
+            letter-spacing:2px;
+            border:2px solid;
+            background: #1e1e38;
+            color:#ddd;
+            transition: all 0.3s;
+            text-transform:uppercase;
+        }
+        .menu-btn:hover { transform:scale(1.05); box-shadow:0 0 20px rgba(255,255,255,0.2); }
+        .menu-btn.cthulhu-btn { border-color:#5cb870; color:#5cb870; }
+        .menu-btn.cthulhu-btn:hover { background:#1a3a1a; box-shadow:0 0 25px rgba(70,180,90,0.5); }
+        .menu-btn.pirate-btn { border-color:#d4a540; color:#d4a540; }
+        .menu-btn.pirate-btn:hover { background:#3d2613; box-shadow:0 0 25px rgba(220,160,50,0.5); }
+        .menu-btn.start-btn { border-color:#c9a84c; color:#c9a84c; background:#2a2010; }
+        .faction-select { display:flex; gap:20px; margin:20px 0; }
+
+        #game-title { text-align:center; font-size:1.8em; color:var(--gold); letter-spacing:3px; margin-bottom:4px; text-shadow:0 0 20px rgba(200,160,60,0.6); }
+        #turn-indicator { text-align:center; font-size:1em; font-weight:bold; padding:6px 18px; border-radius:30px; margin:0 auto 12px; display:inline-block; background:rgba(0,0,0,0.4); border:1px solid #444; }
+        .turn-player { color:#5cb870; text-shadow:0 0 10px var(--cthulhu-glow); }
+        .turn-pirate { color:#d4a540; text-shadow:0 0 10px var(--pirate-glow); }
+
+        .player-area {
+            border-radius:16px; padding:12px 16px; margin:8px 0; position:relative; min-height:170px; transition: box-shadow 0.4s;
+        }
+        .player-area.cthulhu {
+            background: linear-gradient(180deg, rgba(20,50,30,0.45) 0%, rgba(10,30,20,0.7) 100%);
+            border:1px solid rgba(70,150,80,0.35);
+            box-shadow:0 0 25px rgba(40,120,60,0.2);
+        }
+        .player-area.pirate {
+            background: linear-gradient(180deg, rgba(45,30,15,0.45) 0%, rgba(30,18,10,0.7) 100%);
+            border:1px solid rgba(190,130,60,0.35);
+            box-shadow:0 0 25px rgba(160,100,30,0.2);
+        }
+        .active-turn-area { box-shadow:0 0 35px rgba(255,255,200,0.3) !important; border-color:rgba(220,200,100,0.5) !important; }
+
+        .player-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; flex-wrap:wrap; gap:10px; }
+        .player-name { font-size:1.2em; font-weight:bold; letter-spacing:1px; display:flex; align-items:center; gap:6px; }
+        .cthulhu .player-name { color:#5cb870; text-shadow:0 0 10px rgba(70,160,80,0.6); }
+        .pirate .player-name { color:#d4a540; text-shadow:0 0 10px rgba(200,150,50,0.6); }
+        .player-hp {
+            font-size:1.4em; font-weight:bold; padding:5px 18px; border-radius:30px; letter-spacing:1px; transition:0.3s;
+        }
+        .player-hp.high { background:#1a3a1a; color:#5c5; border:1px solid #3a3; }
+        .player-hp.medium { background:#3a2a0a; color:#ea0; border:1px solid #a80; }
+        .player-hp.low { background:#3a0a0a; color:#e44; border:1px solid #a33; animation:pulse-hp 0.8s infinite; }
+        @keyframes pulse-hp { 0%,100%{box-shadow:0 0 8px rgba(255,50,50,0.4)} 50%{box-shadow:0 0 25px rgba(255,50,50,0.9)} }
+
+        .monster-rows { display:flex; flex-direction:column; gap:5px; }
+        .monster-row { display:flex; gap:8px; min-height:72px; align-items:center; flex-wrap:wrap; }
+        .monster-row-label { font-size:0.7em; color:#777; width:32px; text-align:center; background:rgba(0,0,0,0.3); border-radius:12px; padding:2px 4px; }
+        .monster-slot {
+            width:88px; height:72px; border-radius:10px; border:2px dashed var(--slot-border); background:var(--slot-empty);
+            display:flex; align-items:center; justify-content:center; cursor:pointer; transition:0.25s; flex-shrink:0;
+        }
+        .monster-slot:hover { border-color:rgba(255,255,255,0.4); background:rgba(255,255,255,0.1); }
+        .monster-slot.highlight-slot { border-color:#f39c12 !important; background:rgba(243,156,18,0.25) !important; animation:glow-slot 0.7s infinite alternate; }
+        @keyframes glow-slot { from{box-shadow:0 0 12px rgba(243,156,18,0.5)} to{box-shadow:0 0 28px rgba(243,156,18,0.9)} }
+        .monster-slot.target-highlight { border-color:#e74c3c !important; background:rgba(231,76,60,0.3) !important; animation:glow-target 0.5s infinite alternate; }
+        @keyframes glow-target { from{box-shadow:0 0 10px rgba(231,76,60,0.5)} to{box-shadow:0 0 24px rgba(231,76,60,0.95)} }
+        .monster-slot.equip-target-highlight { border-color:#2ecc71 !important; background:rgba(46,204,113,0.25) !important; animation:glow-equip 0.5s infinite alternate; }
+        @keyframes glow-equip { from{box-shadow:0 0 10px rgba(46,204,113,0.5)} to{box-shadow:0 0 24px rgba(46,204,113,0.9)} }
+
+        .monster-card {
+            width:100%; height:100%; border-radius:8px; padding:5px 7px; display:flex; flex-direction:column;
+            justify-content:space-between; font-size:0.7em; cursor:pointer; border:2px solid transparent; overflow:hidden;
+        }
+        .monster-card.cthulhu-monster { background:linear-gradient(145deg,#1a3a1a 0%,#0d220d 100%); border-color:#3a6a3a; color:#c0e0c0; }
+        .monster-card.pirate-monster { background:linear-gradient(145deg,#3a2a10 0%,#1f1508 100%); border-color:#7a5a2a; color:#f0e0c0; }
+        .monster-card .monster-name { font-weight:bold; font-size:0.8em; text-align:center; text-shadow:0 1px 2px black; }
+        .monster-stats { display:flex; justify-content:space-around; font-size:0.9em; background:rgba(0,0,0,0.4); border-radius:10px; }
+        .stat-atk { color:#ff6b6b; } .stat-def { color:#5dade2; } .stat-bonus { color:#f39c12; font-size:0.7em; }
+        .monster-card.equipped { box-shadow:0 0 14px rgba(255,210,60,0.7); border-color:#e6b800 !important; }
+        .monster-card.equipped::after { content:'⚔️'; position:absolute; top:-6px; right:-4px; font-size:1.1em; }
+        .monster-card.taunt-mark { border-color:#ff4757 !important; }
+        .monster-card.taunt-mark::before { content:'🛡️'; position:absolute; top:-8px; left:-5px; }
+        .monster-card.has-attacked { opacity:0.6; filter:grayscale(30%); }
+        .monster-card.cant-attack { opacity:0.5; filter:grayscale(40%); }
+
+        .trap-zone { display:flex; gap:6px; margin-top:4px; min-height:38px; align-items:center; }
+        .trap-slot {
+            width:56px; height:38px; border-radius:8px; border:1px dashed rgba(255,255,255,0.22); background:rgba(0,0,0,0.4);
+            font-size:0.6em; display:flex; align-items:center; justify-content:center; transition:0.2s;
+        }
+        .trap-slot.active-trap { background:rgba(200,40,40,0.55); border-color:rgba(255,100,100,0.7); color:#faa; }
+        .trap-slot.cthulhu-trap { border-color:rgba(90,180,90,0.5); background:rgba(20,60,20,0.6); color:#9f9; }
+        .trap-slot.pirate-trap { border-color:rgba(210,140,50,0.5); background:rgba(55,30,10,0.6); color:#ebc; }
+
+        #hand-area { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; padding:12px 0; min-height:100px; background:rgba(0,0,0,0.2); border-radius:16px; margin:8px 0; }
+        .hand-card {
+            width:76px; height:106px; border-radius:10px; cursor:pointer; display:flex; flex-direction:column;
+            justify-content:space-between; padding:6px 7px; font-size:0.62em; border:2px solid #555;
+            background:linear-gradient(145deg,#1e1e38,#15152a); color:#d4d4c8; transition:0.25s; flex-shrink:0;
+            box-shadow:0 6px 14px rgba(0,0,0,0.5);
+        }
+        .hand-card:hover { transform:translateY(-18px); box-shadow:0 12px 28px rgba(0,0,0,0.8); border-color:#aaa; z-index:15; }
+        .hand-card.selected-card { border-color:#f39c12 !important; box-shadow:0 0 28px rgba(243,156,18,0.8) !important; transform:translateY(-22px); }
+        .hand-card.type-monster { border-left:4px solid #e74c3c; }
+        .hand-card.type-magic { border-left:4px solid #9b59b6; }
+        .hand-card.type-trap { border-left:4px solid #e67e22; }
+        .hand-card.type-equipment { border-left:4px solid #2ecc71; }
+        .card-type-label { font-size:0.7em; color:#bbb; text-align:center; background:rgba(0,0,0,0.4); border-radius:6px; }
+        .card-name-hand { font-weight:bold; text-align:center; font-size:0.9em; }
+        .card-effect-hint { font-size:0.65em; color:#aaa; text-align:center; }
+
+        .btn {
+            padding:10px 24px; border-radius:30px; font-size:0.95em; cursor:pointer; font-weight:bold; letter-spacing:1px;
+            border:2px solid; transition:0.2s; text-transform:uppercase; background:#2a2a3a; color:#ddd;
+        }
+        .btn-end-turn { background:linear-gradient(135deg,#c9a84c,#aa8820); color:#111; border-color:#e0c060; }
+        .btn-end-turn:hover { box-shadow:0 0 28px rgba(200,160,50,0.7); transform:scale(1.05); }
+        .btn-end-turn:disabled { background:#444; color:#888; border-color:#555; cursor:not-allowed; }
+        #log-area { max-height:100px; overflow-y:auto; background:rgba(0,0,0,0.5); border-radius:10px; padding:10px; font-size:0.72em; color:#ccc; border:1px solid #3a3a5a; }
+        #message-overlay {
+            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
+            background:rgba(10,10,20,0.95); border:3px solid #c9a84c; border-radius:20px; padding:28px 40px;
+            z-index:200; text-align:center; font-size:1.5em; color:#f0e6d3; transition:0.4s; backdrop-filter:blur(8px);
+        }
+        #message-overlay.show { transform:translate(-50%,-50%) scale(1); }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="menu-overlay">
+            <div class="menu-title">🌊 克苏鲁 🆚 海盗 🏴‍☠️</div>
+            <div class="menu-subtitle">选择对战模式</div>
+            <button class="menu-btn start-btn" id="btn-single">🤖 单人模式 (人机对战)</button>
+            <button class="menu-btn start-btn" id="btn-multi">👥 双人模式 (本地对战)</button>
+            <div id="faction-selector" style="display:none; flex-direction:column; align-items:center;"></div>
+        </div>
+        <div id="game-title"></div>
+        <div style="text-align:center"><span id="turn-indicator"></span></div>
+        <div class="player-area" id="top-area"></div>
+        <div id="log-area"></div>
+        <div class="player-area" id="bottom-area"></div>
+        <div id="hand-area"></div>
+        <div id="controls">
+            <button class="btn btn-end-turn" id="btn-end-turn">🔚 结束回合</button>
+            <button class="btn btn-cancel" id="btn-cancel" style="display:none;">✖ 取消</button>
+            <button class="btn btn-reset" id="btn-reset">🔄 重新开始</button>
+        </div>
+    </div>
+    <div id="message-overlay"></div>
+
+    <script>
+        (function() {
+            // ==================== 卡牌库 ====================
+            const CTHULHU_CARDS = {
+                monsters: [
+                    { id:'c_m1',name:'深潜者',attack:2,defense:2,effectDesc:'召唤时抽1张牌',effectType:'on_summon_draw',effectParam:1 },
+                    { id:'c_m2',name:'修格斯',attack:3,defense:3,effectDesc:'被破坏时对敌方全体造成1点伤害',effectType:'on_destroy_damage_all',effectParam:1 },
+                    { id:'c_m3',name:'达贡',attack:4,defense:4,effectDesc:'每回合可攻击2次',effectType:'double_attack' },
+                    { id:'c_m4',name:'克苏鲁仆从',attack:1,defense:3,effectDesc:'嘲讽',effectType:'taunt' },
+                    { id:'c_m5',name:'星之眷族',attack:3,defense:2,effectDesc:'攻击无视防御',effectType:'pierce' },
+                    { id:'c_m6',name:'伟大克苏鲁',attack:6,defense:5,effectDesc:'登场摧毁对方所有怪兽',effectType:'on_summon_destroy_all' },
+                    { id:'c_m7',name:'夜魇',attack:2,defense:4,effectDesc:'每回合恢复1点血量',effectType:'heal_per_turn',effectParam:1 },
+                    { id:'c_m8',name:'米·戈',attack:1,defense:1,effectDesc:'死亡时抽2张牌',effectType:'on_death_draw',effectParam:2 },
+                    { id:'c_m9',name:'深渊之主',attack:5,defense:4,effectDesc:'攻击使对方怪兽攻击永久-1',effectType:'weaken_on_attack' },
+                    { id:'c_m10',name:'暗影触手',attack:3,defense:2,effectDesc:'召唤时对对方玩家造成1伤害',effectType:'on_summon_damage_player',effectParam:1 },
+                ],
+                magic: [
+                    { id:'c_mg1',name:'疯狂低语',type:'magic',effectDesc:'对方1只怪兽攻击力减半2回合',effectType:'reduce_attack_half',needsTarget:true,targetEnemy:true },
+                    { id:'c_mg2',name:'暗黑仪式',type:'magic',effectDesc:'牺牲己方1只怪兽造成其攻击力伤害',effectType:'sacrifice_damage',needsTarget:true,targetOwn:true },
+                    { id:'c_mg3',name:'精神污染',type:'magic',effectDesc:'对方下回合跳过抽牌',effectType:'skip_draw' },
+                    { id:'c_mg4',name:'深渊呼唤',type:'magic',effectDesc:'从牌组随机召唤1只怪兽',effectType:'summon_from_deck' },
+                ],
+                traps: [
+                    { id:'c_t1',name:'深渊陷阱',type:'trap',effectDesc:'对方召唤时攻击防御-2',effectType:'weaken_summon',triggerCondition:'on_enemy_summon' },
+                    { id:'c_t2',name:'疯狂之网',type:'trap',effectDesc:'对方攻击时无效并使其无法攻击1回合',effectType:'negate_attack',triggerCondition:'on_enemy_attack' },
+                ],
+                equipment: [
+                    { id:'c_e1',name:'远古印记',type:'equipment',effectDesc:'攻击+2防御+2',attackBonus:2,defenseBonus:2 },
+                    { id:'c_e2',name:'触手附肢',type:'equipment',effectDesc:'攻击+1，额外伤害1',attackBonus:1,defenseBonus:0,effectType:'bonus_damage',effectParam:1 },
+                ],
+            };
+            const PIRATE_CARDS = {
+                monsters: [
+                    { id:'p_m1',name:'水手',attack:2,defense:2,effectDesc:'召唤时恢复1血',effectType:'on_summon_heal',effectParam:1 },
+                    { id:'p_m2',name:'炮手',attack:3,defense:2,effectDesc:'可直接攻击玩家',effectType:'direct_attack' },
+                    { id:'p_m3',name:'大副',attack:3,defense:3,effectDesc:'登场友方怪兽攻击永久+1',effectType:'on_summon_buff_ally' },
+                    { id:'p_m4',name:'船长',attack:4,defense:4,effectDesc:'友方全体攻击+1光环',effectType:'aura_attack' },
+                    { id:'p_m5',name:'海盗王',attack:5,defense:5,effectDesc:'攻击额外2伤害',effectType:'bonus_damage_on_attack',effectParam:2 },
+                    { id:'p_m6',name:'鹦鹉',attack:1,defense:1,effectDesc:'查看对方1张手牌',effectType:'peek_hand' },
+                    { id:'p_m7',name:'刀客',attack:2,defense:3,effectDesc:'击杀怪兽永久+1攻击',effectType:'grow_on_kill' },
+                    { id:'p_m8',name:'炮舰',attack:3,defense:4,effectDesc:'每回合对对方玩家造成1伤害',effectType:'burn_per_turn' },
+                    { id:'p_m9',name:'幽灵船',attack:4,defense:2,effectDesc:'每回合免疫一次伤害',effectType:'shield_once' },
+                ],
+                magic: [
+                    { id:'p_mg1',name:'炮击',type:'magic',effectDesc:'对方全体怪兽1伤害',effectType:'damage_all_monsters' },
+                    { id:'p_mg2',name:'鼓舞士气',type:'magic',effectDesc:'己方全体本回合攻击+2',effectType:'buff_all_this_turn' },
+                    { id:'p_mg3',name:'顺风而行',type:'magic',effectDesc:'抽3张牌',effectType:'draw_cards',effectParam:3 },
+                    { id:'p_mg4',name:'朗姆酒',type:'magic',effectDesc:'恢复3点血量',effectType:'heal_player',effectParam:3 },
+                ],
+                traps: [
+                    { id:'p_t1',name:'火药桶',type:'trap',effectDesc:'对方召唤时造成2伤害',effectType:'damage_summon',triggerCondition:'on_enemy_summon' },
+                    { id:'p_t2',name:'船板陷阱',type:'trap',effectDesc:'对方攻击时攻击力减半',effectType:'halve_attack',triggerCondition:'on_enemy_attack' },
+                ],
+                equipment: [
+                    { id:'p_e1',name:'锋利的弯刀',type:'equipment',effectDesc:'攻击+2防御+1',attackBonus:2,defenseBonus:1 },
+                    { id:'p_e2',name:'幸运金币',type:'equipment',effectDesc:'攻击时抽1张牌',attackBonus:0,defenseBonus:1,effectType:'draw_on_attack' },
+                ],
+            };
+
+            // ==================== 游戏核心状态 ====================
+            const state = {
+                mode: null, // 'single' | 'multi'
+                factions: {
+                    cthulhu: { hp:10, deck:[], hand:[], monsters:[], traps:[], graveyard:[], skipDraw:false, firstTurn:true },
+                    pirate: { hp:10, deck:[], hand:[], monsters:[], traps:[], graveyard:[], skipDraw:false, firstTurn:true }
+                },
+                currentFaction: 'cthulhu', // 当前回合阵营
+                gameOver: false,
+                selectedHandCard: null,
+                targetMode: null,
+                selectedAttacker: null,
+                pendingMagicCard: null,
+                pendingEquipCard: null,
+                playerFaction: null, // 单人模式下玩家选择的阵营
+            };
+
+            function getFaction(camp) { return state.factions[camp]; }
+            function getCurrentFaction() { return getFaction(state.currentFaction); }
+            function getOpponentFaction() { return getFaction(state.currentFaction==='cthulhu'?'pirate':'cthulhu'); }
+
+            function buildDeck(cardSet) {
+                let deck = [];
+                cardSet.monsters.forEach(m => { for(let i=0;i<3;i++) deck.push({...m,type:'monster'}); });
+                cardSet.magic.forEach(m => { for(let i=0;i<2;i++) deck.push({...m,type:'magic'}); });
+                cardSet.traps.forEach(t => { for(let i=0;i<2;i++) deck.push({...t,type:'trap'}); });
+                cardSet.equipment.forEach(e => { for(let i=0;i<2;i++) deck.push({...e,type:'equipment'}); });
+                return shuffle(deck);
+            }
+            function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+            function getMonsterAttack(monster){
+                let atk = monster.cardData.attack + (monster.bonusAttack||0) + (monster.permanentAttackBuff||0) + (monster.bonusDamage||0);
+                if(monster.attackReducedTurns > 0) atk = Math.floor(atk / 2);
+                return Math.max(0, atk);
+            }
+            function getMonsterDefense(monster){
+                const base = monster.currentDefense != null ? monster.currentDefense : monster.cardData.defense;
+                return Math.max(0, base + (monster.bonusDefense||0));
+            }
+            function canMonsterAttack(monster){
+                return monster.attacksLeft > 0 && monster.cantAttackTurns <= 0;
+            }
+            function drawCards(faction, count) { for(let i=0;i<count;i++){ if(faction.deck.length===0) break; faction.hand.push(faction.deck.pop()); } }
+            function findMonsterFaction(monster){
+                if(state.factions.cthulhu.monsters.includes(monster)) return state.factions.cthulhu;
+                if(state.factions.pirate.monsters.includes(monster)) return state.factions.pirate;
+                return null;
+            }
+            function triggerTraps(trigger, sourceFaction, subject){
+                const opponentFaction = sourceFaction===state.factions.cthulhu ? state.factions.pirate : state.factions.cthulhu;
+                for(let i=0;i<opponentFaction.traps.length;i++){
+                    const trap = opponentFaction.traps[i];
+                    if(trap.cardData.triggerCondition!==trigger) continue;
+                    if(trigger==='on_enemy_summon'){
+                        if(trap.cardData.effectType==='weaken_summon'){
+                            subject.bonusAttack = (subject.bonusAttack||0) - 2;
+                            subject.currentDefense -= 2;
+                            addLog(`触发陷阱 ${trap.cardData.name}，${subject.cardData.name} 攻防-2`);
+                            opponentFaction.traps.splice(i,1);
+                            return false;
+                        }
+                    }
+                    if(trigger==='on_enemy_attack'){
+                        if(trap.cardData.effectType==='negate_attack'){
+                            subject.cantAttackTurns = 1;
+                            addLog(`触发陷阱 ${trap.cardData.name}，攻击被无效`);
+                            opponentFaction.traps.splice(i,1);
+                            return true;
+                        }
+                        if(trap.cardData.effectType==='halve_attack'){
+                            subject.attackReducedTurns = 1;
+                            addLog(`触发陷阱 ${trap.cardData.name}，攻击力减半`);
+                            opponentFaction.traps.splice(i,1);
+                            return false;
+                        }
+                    }
+                }
+                return false;
+            }
+            function addLog(msg){ const log=document.getElementById('log-area'); log.innerHTML+=`<div class="log-entry">${msg}</div>`; log.scrollTop=log.scrollHeight; }
+
+            function initGame() {
+                state.factions.cthulhu.deck = buildDeck(CTHULHU_CARDS);
+                state.factions.pirate.deck = buildDeck(PIRATE_CARDS);
+                for(let f of ['cthulhu','pirate']) {
+                    const fac = getFaction(f);
+                    fac.hand=[]; fac.monsters=[]; fac.traps=[]; fac.graveyard=[];
+                    fac.hp=10; fac.skipDraw=false; fac.firstTurn=true;
+                    drawCards(fac, 4);
+                }
+                state.gameOver = false;
+                state.selectedHandCard = null;
+                state.targetMode = null;
+                state.pendingMagicCard = null;
+                state.pendingEquipCard = null;
+                document.getElementById('log-area').innerHTML = '';
+                addLog('🌊 游戏开始！各抽4张牌。');
+                if(state.mode==='single'){
+                    state.currentFaction = state.playerFaction;
+                } else {
+                    state.currentFaction = 'cthulhu';
+                    drawCards(getCurrentFaction(), 1);
+                    addLog('先手玩家额外抽1张牌');
+                }
+                renderAll();
+                if(state.mode==='single' && state.currentFaction !== state.playerFaction) {
+                    setTimeout(aiTurn, 500);
+                }
+            }
+
+            function checkGameOver() {
+                if(state.factions.cthulhu.hp <= 0) { state.gameOver=true; showMessage('🏴‍☠️ 海盗获胜！'); return true; }
+                if(state.factions.pirate.hp <= 0) { state.gameOver=true; showMessage('🐙 克苏鲁获胜！'); return true; }
+                return false;
+            }
+            function showMessage(msg){ const ov=document.getElementById('message-overlay'); ov.innerHTML=msg; ov.classList.add('show'); setTimeout(()=>ov.classList.remove('show'),2500); }
+
+            // ==================== 渲染 ====================
+            function renderAll() {
+                renderTopArea();
+                renderBottomArea();
+                renderHand();
+                updateUI();
+            }
+            function renderTopArea() {
+                const topFaction = state.currentFaction==='cthulhu'?'pirate':'cthulhu';
+                renderPlayerArea('top-area', topFaction, false);
+            }
+            function renderBottomArea() {
+                renderPlayerArea('bottom-area', state.currentFaction, true);
+            }
+            function renderPlayerArea(containerId, factionKey, isCurrent) {
+                const container = document.getElementById(containerId);
+                const faction = getFaction(factionKey);
+                const sideClass = factionKey==='cthulhu'?'cthulhu':'pirate';
+                container.className = `player-area ${sideClass}`;
+                if(isCurrent && !state.gameOver) container.classList.add('active-turn-area');
+                container.innerHTML = `
+                    <div class="player-header">
+                        <span class="player-name">${factionKey==='cthulhu'?'🐙 克苏鲁':'🏴‍☠️ 海盗'} ${isCurrent?'(当前回合)':''}</span>
+                        <span class="player-hp ${faction.hp>6?'high':faction.hp>3?'medium':'low'}">❤️ ${faction.hp}</span>
+                        <span>📦牌组:${faction.deck.length}</span>
+                    </div>
+                    <div class="monster-rows">
+                        <div class="monster-row"><span class="monster-row-label">后排</span><span id="${containerId}-row-back"></span></div>
+                        <div class="monster-row"><span class="monster-row-label">前排</span><span id="${containerId}-row-front"></span></div>
+                    </div>
+                    <div class="trap-zone"><span>🕳️陷阱</span><span id="${containerId}-traps"></span></div>
+                `;
+                renderMonsterSlots(`${containerId}-row-front`, faction, 'front', factionKey, isCurrent);
+                renderMonsterSlots(`${containerId}-row-back`, faction, 'back', factionKey, isCurrent);
+                renderTrapSlots(`${containerId}-traps`, faction, factionKey);
+            }
+
+            function renderMonsterSlots(containerId, faction, row, factionKey, isCurrent) {
+                const cont = document.getElementById(containerId);
+                if(!cont) return;
+                cont.innerHTML = '';
+                for(let i=0;i<4;i++){
+                    const slot = document.createElement('div');
+                    slot.className = 'monster-slot';
+                    const monster = faction.monsters.find(m=>m.row===row && m.slotIndex===i);
+                    if(monster){
+                        slot.appendChild(createMonsterCard(monster, factionKey));
+                        slot.addEventListener('click', (e)=>{ e.stopPropagation(); handleSlotClick(monster, factionKey, isCurrent); });
+                    } else {
+                        slot.addEventListener('click', (e)=>{ e.stopPropagation(); handleEmptySlotClick(i, row, factionKey, isCurrent); });
+                    }
+                    if(state.targetMode==='summon' && !monster && isCurrent && factionKey===state.currentFaction) slot.classList.add('highlight-slot');
+                    if(state.targetMode==='equip' && monster && isCurrent && factionKey===state.currentFaction) slot.classList.add('equip-target-highlight');
+                    if(state.targetMode==='attack' && monster && !isCurrent) slot.classList.add('target-highlight');
+                    if(state.targetMode==='attack' && !monster && !isCurrent && faction.monsters.length===0) slot.classList.add('target-highlight');
+                    cont.appendChild(slot);
+                }
+            }
+            function createMonsterCard(monster, factionKey){
+                const card = document.createElement('div');
+                card.className = `monster-card ${factionKey}-monster`;
+                const atk = getMonsterAttack(monster);
+                const def = getMonsterDefense(monster);
+                card.innerHTML = `<div class="monster-name">${monster.cardData.name}</div><div class="monster-stats"><span class="stat-atk">🗡${atk}</span><span class="stat-def">🛡${def}</span></div>`;
+                if(monster.equippedWith) card.classList.add('equipped');
+                if(monster.cardData.effectType==='taunt' || monster.grantedTaunt) card.classList.add('taunt-mark');
+                if(monster.hasAttacked) card.classList.add('has-attacked');
+                return card;
+            }
+            function renderTrapSlots(containerId, faction, factionKey){
+                const cont = document.getElementById(containerId);
+                if(!cont) return;
+                cont.innerHTML = faction.traps.map(t=>`<div class="trap-slot ${factionKey}-trap active-trap">${t.cardData.name}</div>`).join('') || '<div class="trap-slot">空</div>';
+            }
+            function isHumanTurn(){
+                return state.mode==='single' ? state.currentFaction===state.playerFaction : true;
+            }
+            function renderHand(){
+                const handDiv = document.getElementById('hand-area');
+                if(state.gameOver){
+                    handDiv.innerHTML = '<div style="color:#666; padding:20px;">游戏结束</div>';
+                    return;
+                }
+                if(state.mode==='single' && !isHumanTurn()){
+                    handDiv.innerHTML = '<div style="color:#666; padding:20px;">等待对手回合...</div>';
+                    return;
+                }
+                const faction = getCurrentFaction();
+                handDiv.innerHTML = '';
+                faction.hand.forEach((card,idx)=>{
+                    const el = document.createElement('div');
+                    el.className = `hand-card type-${card.type}`;
+                    if(state.selectedHandCard === card) el.classList.add('selected-card');
+                    el.innerHTML = `<div class="card-type-label">${card.type==='monster'?'怪兽':card.type==='magic'?'魔法':card.type==='trap'?'陷阱':'装备'}</div><div class="card-name-hand">${card.name}</div><div class="card-effect-hint">${card.effectDesc||''}</div>`;
+                    el.addEventListener('click', ()=>handleHandCardClick(card));
+                    handDiv.appendChild(el);
+                });
+            }
+            function updateUI(){
+                document.getElementById('turn-indicator').innerHTML = state.gameOver?'⚫ 游戏结束':`当前回合：${state.currentFaction==='cthulhu'?'🐙 克苏鲁':'🏴‍☠️ 海盗'}`;
+                document.getElementById('btn-end-turn').disabled = state.gameOver || !(state.mode==='single'?state.currentFaction===state.playerFaction:true);
+                document.getElementById('btn-cancel').style.display = state.targetMode?'inline-block':'none';
+            }
+
+            // ==================== 交互处理 ====================
+            function handleHandCardClick(card){
+                if(state.gameOver) return;
+                if(state.mode==='single' && !isHumanTurn()) return;
+                if(state.targetMode) { cancelTarget(); return; }
+                if(state.selectedHandCard === card) { state.selectedHandCard=null; renderAll(); return; }
+                state.selectedHandCard = card;
+                if(card.type==='monster') state.targetMode='summon';
+                else if(card.type==='magic') {
+                    if(card.needsTarget){ state.targetMode='magic-target'; state.pendingMagicCard=card; }
+                    else { useMagic(card); state.selectedHandCard=null; }
+                } else if(card.type==='trap') { setTrap(card); state.selectedHandCard=null; }
+                else if(card.type==='equipment') { state.targetMode='equip'; state.pendingEquipCard=card; }
+                renderAll();
+            }
+            function handleEmptySlotClick(slotIndex, row, factionKey, isCurrent){
+                if(state.gameOver) return;
+                if(state.mode==='single' && !isHumanTurn()) return;
+                if(state.targetMode==='summon' && state.selectedHandCard && factionKey===state.currentFaction){
+                    summonMonster(state.selectedHandCard, row, slotIndex);
+                    state.selectedHandCard=null; state.targetMode=null;
+                    renderAll();
+                }
+                if(state.targetMode==='attack' && state.selectedAttacker && factionKey!==state.currentFaction){
+                    const opp = getFaction(factionKey);
+                    if(opp.monsters.length===0){
+                        performDirectAttack(state.selectedAttacker);
+                    }
+                }
+            }
+            function handleSlotClick(monster, factionKey, isCurrent){
+                if(state.gameOver) return;
+                if(state.mode==='single' && !isHumanTurn()) return;
+                if(state.targetMode==='attack' && !isCurrent && state.selectedAttacker){
+                    performAttack(monster);
+                } else if(state.targetMode==='equip' && isCurrent && state.pendingEquipCard && factionKey===state.currentFaction){
+                    equipMonster(monster, state.pendingEquipCard);
+                    state.pendingEquipCard=null; state.selectedHandCard=null; state.targetMode=null;
+                    renderAll();
+                } else if(state.targetMode==='magic-target' && state.pendingMagicCard){
+                    const card = state.pendingMagicCard;
+                    if((card.targetEnemy && factionKey!==state.currentFaction) || (card.targetOwn && factionKey===state.currentFaction)){
+                        useMagicOnTarget(card, monster);
+                    }
+                } else if(!state.targetMode && isCurrent){
+                    if(monster.hasAttacked || monster.cantAttackTurns > 0){
+                        addLog(`${monster.cardData.name} 不能攻击`);
+                        return;
+                    }
+                    state.targetMode = 'attack';
+                    state.selectedAttacker = monster;
+                    addLog(`选择 ${monster.cardData.name} 进行攻击，点击目标怪兽或空区`);
+                    renderAll();
+                }
+            }
+            function summonMonster(card, row, slotIndex){
+                const faction = getCurrentFaction();
+                if(faction.monsters.length>=8) { addLog('场上已满'); return; }
+                if(faction.monsters.filter(m=>m.row===row).length>=4) { addLog('该排已满'); return; }
+                const monster = {
+                    id:Date.now()+Math.random(),
+                    cardData:{...card},
+                    row, slotIndex,
+                    currentDefense: card.defense,
+                    hasAttacked:false, equippedWith:null,
+                    bonusAttack:0, bonusDefense:0,
+                    permanentAttackBuff:0, grantedTaunt:false,
+                    cantAttackTurns:0, attackReducedTurns:0,
+                    attacksLeft: 1
+                };
+                faction.monsters.push(monster);
+                faction.hand = faction.hand.filter(c=>c!==card);
+                addLog(`召唤 ${card.name}`);
+                triggerTraps('on_enemy_summon', faction, monster);
+                triggerOnSummon(monster);
+                checkGameOver();
+                renderAll();
+            }
+            function triggerOnSummon(monster){
+                const faction = getCurrentFaction();
+                const opp = getOpponentFaction();
+                const card = monster.cardData;
+                if(card.effectType==='on_summon_draw') drawCards(faction, card.effectParam||1);
+                if(card.effectType==='on_summon_destroy_all'){ opp.monsters=[]; addLog('摧毁对方所有怪兽！'); }
+                if(card.effectType==='on_summon_damage_player'){ opp.hp-=card.effectParam; addLog(`对对方造成${card.effectParam}伤害`); }
+                if(card.effectType==='on_summon_heal'){ faction.hp+=card.effectParam; }
+                if(card.effectType==='on_summon_buff_ally'){
+                    const allies = faction.monsters.filter(m=>m!==monster);
+                    if(allies.length>0){ allies[0].permanentAttackBuff+=1; addLog(`${allies[0].cardData.name}攻击永久+1`); }
+                }
+                checkGameOver();
+            }
+            function useMagic(card){
+                const faction = getCurrentFaction();
+                faction.hand = faction.hand.filter(c=>c!==card);
+                if(card.effectType==='skip_draw'){ getOpponentFaction().skipDraw=true; addLog('对方下回合跳过抽牌'); }
+                else if(card.effectType==='summon_from_deck'){
+                    const monsters = faction.deck.filter(c=>c.type==='monster');
+                    if(monsters.length>0){ const m=monsters[0]; faction.deck=faction.deck.filter(c=>c!==m); faction.hand.push(m); addLog(`从牌组加入${m.name}`); }
+                } else if(card.effectType==='damage_all_monsters'){
+                    getOpponentFaction().monsters.slice().forEach(m=>{ m.currentDefense -= 1; if(getMonsterDefense(m) <= 0) destroyMonster(m,false); });
+                } else if(card.effectType==='buff_all_this_turn'){ faction.monsters.forEach(m=>m.bonusAttack+=2); }
+                else if(card.effectType==='draw_cards') drawCards(faction, card.effectParam||3);
+                else if(card.effectType==='heal_player') faction.hp+=card.effectParam;
+                checkGameOver();
+                renderAll();
+            }
+            function useMagicOnTarget(card, target){
+                const faction = getCurrentFaction();
+                faction.hand = faction.hand.filter(c=>c!==card);
+                if(card.effectType==='reduce_attack_half'){ target.attackReducedTurns=2; addLog(`${target.cardData.name}攻击减半2回合`); }
+                else if(card.effectType==='sacrifice_damage'){
+                    const dmg = getMonsterAttack(target);
+                    getOpponentFaction().hp -= dmg;
+                    destroyMonster(target, true);
+                }
+                state.pendingMagicCard=null; state.targetMode=null; state.selectedHandCard=null;
+                checkGameOver();
+                renderAll();
+            }
+            function setTrap(card){
+                const faction = getCurrentFaction();
+                faction.hand = faction.hand.filter(c=>c!==card);
+                faction.traps.push({cardData:card});
+                addLog(`设置陷阱 ${card.name}`);
+                renderAll();
+            }
+            function equipMonster(monster, equipCard){
+                const faction = getCurrentFaction();
+                faction.hand = faction.hand.filter(c=>c!==equipCard);
+                if(monster.equippedWith) addLog('替换装备');
+                monster.equippedWith = equipCard;
+                monster.bonusAttack += (equipCard.attackBonus||0);
+                monster.bonusDefense += (equipCard.defenseBonus||0);
+                if(equipCard.effectType==='grant_taunt') monster.grantedTaunt=true;
+                addLog(`装备${equipCard.name}`);
+            }
+            function performAttack(targetMonster){
+                const faction = getCurrentFaction();
+                const attacker = state.selectedAttacker || faction.monsters.find(m=>!m.hasAttacked && m.cantAttackTurns<=0);
+                if(!attacker){ addLog('没有可攻击的怪兽'); return; }
+                if(triggerTraps('on_enemy_attack', faction, attacker)){
+                    attacker.hasAttacked = true;
+                    state.targetMode = null;
+                    state.selectedAttacker = null;
+                    renderAll();
+                    return;
+                }
+                const atk = getMonsterAttack(attacker);
+                if(attacker.cardData.effectType==='pierce'){
+                    const opp = getOpponentFaction();
+                    opp.hp -= atk;
+                    addLog(`${attacker.cardData.name} 对敌方玩家造成 ${atk} 伤害（穿透）`);
+                } else {
+                    const targetDef = getMonsterDefense(targetMonster);
+                    const dmg = Math.max(0, atk - targetDef);
+                    targetMonster.currentDefense -= dmg;
+                    addLog(`${attacker.cardData.name} 攻击 ${targetMonster.cardData.name} 造成 ${dmg} 伤害`);
+                    if(getMonsterDefense(targetMonster) <= 0) destroyMonster(targetMonster, false);
+                }
+                attacker.hasAttacked = true;
+                state.targetMode = null;
+                state.selectedAttacker = null;
+                checkGameOver();
+                renderAll();
+            }
+            function destroyMonster(monster, isSelf){
+                const faction = findMonsterFaction(monster);
+                const idx = faction ? faction.monsters.indexOf(monster) : -1;
+                if(idx>-1) faction.monsters.splice(idx,1);
+                addLog(`${monster.cardData.name} 被摧毁`);
+                if(monster.cardData.effectType==='on_destroy_damage_all'){
+                    const opp = faction===state.factions.cthulhu ? state.factions.pirate : state.factions.cthulhu;
+                    opp.monsters.slice().forEach(m=>{ m.currentDefense -= 1; if(getMonsterDefense(m) <= 0) destroyMonster(m, false); });
+                }
+                if(monster.cardData.effectType==='on_death_draw' && isSelf && faction) drawCards(faction,2);
+            }
+            function cancelTarget(){
+                state.targetMode=null; state.selectedHandCard=null; state.pendingMagicCard=null; state.pendingEquipCard=null; state.selectedAttacker=null;
+                renderAll();
+            }
+            function endTurn(){
+                if(state.gameOver) return;
+                const faction = getCurrentFaction();
+                faction.monsters.forEach(m=>{
+                    m.hasAttacked = false;
+                    if(m.cantAttackTurns > 0) m.cantAttackTurns--;
+                    if(m.attackReducedTurns > 0) m.attackReducedTurns--;
+                });
+                faction.firstTurn = false;
+                cancelTarget();
+                if(state.mode==='single'){
+                    if(state.currentFaction === state.playerFaction){
+                        state.currentFaction = state.playerFaction==='cthulhu'?'pirate':'cthulhu';
+                        renderAll();
+                        setTimeout(aiTurn, 600);
+                    }
+                } else {
+                    state.currentFaction = state.currentFaction==='cthulhu'?'pirate':'cthulhu';
+                    const newFaction = getCurrentFaction();
+                    if(!newFaction.skipDraw) drawCards(newFaction, 2);
+                    else newFaction.skipDraw = false;
+                    addLog(`轮到 ${state.currentFaction==='cthulhu'?'克苏鲁':'海盗'} 回合，抽2张牌`);
+                    renderAll();
+                }
+            }
+            function performDirectAttack(attacker){
+                const opp = getOpponentFaction();
+                const atk = getMonsterAttack(attacker);
+                opp.hp -= atk;
+                addLog(`${attacker.cardData.name} 直接攻击对手，造成 ${atk} 伤害`);
+                attacker.hasAttacked = true;
+                state.targetMode = null;
+                state.selectedAttacker = null;
+                checkGameOver();
+                renderAll();
+            }
+            function aiTurn(){
+                if(state.gameOver) return;
+                const aiFaction = getCurrentFaction();
+                state.targetMode = null;
+                state.pendingMagicCard = null;
+                state.pendingEquipCard = null;
+                state.selectedHandCard = null;
+                state.selectedAttacker = null;
+                if(!aiFaction.skipDraw) drawCards(aiFaction, 2);
+                else aiFaction.skipDraw=false;
+                addLog('🤖 AI 回合开始');
+                // 优先召唤怪兽
+                while(aiFaction.monsters.length < 8){
+                    const monsterIndex = aiFaction.hand.findIndex(c=>c.type==='monster');
+                    if(monsterIndex === -1) break;
+                    const card = aiFaction.hand[monsterIndex];
+                    const row = aiFaction.monsters.filter(m=>m.row==='front').length < 4 ? 'front' : 'back';
+                    const availableSlots = [0,1,2,3].filter(i=>!aiFaction.monsters.some(m=>m.row===row&&m.slotIndex===i));
+                    if(availableSlots.length===0) break;
+                    const slotIndex = availableSlots[0];
+                    const newMonster = {id:Date.now()+Math.random(), cardData:{...card}, row, slotIndex, currentDefense:card.defense, hasAttacked:false, equippedWith:null, bonusAttack:0, bonusDefense:0, permanentAttackBuff:0, cantAttackTurns:0, attackReducedTurns:0, attacksLeft:1};
+                    aiFaction.monsters.push(newMonster);
+                    aiFaction.hand.splice(monsterIndex,1);
+                    addLog(`AI 召唤 ${card.name}`);
+                    triggerOnSummon(newMonster);
+                }
+                // 使用魔法或装备
+                if(aiFaction.hand.length>0){
+                    for(let i=0;i<aiFaction.hand.length;i++){
+                        const card = aiFaction.hand[i];
+                        if(card.type==='magic' && card.effectType==='draw_cards'){
+                            useMagic(card);
+                            addLog(`AI 使用 ${card.name}`);
+                            break;
+                        }
+                        if(card.type==='magic' && card.effectType==='damage_all_monsters'){
+                            useMagic(card);
+                            addLog(`AI 使用 ${card.name}`);
+                            break;
+                        }
+                        if(card.type==='magic' && card.effectType==='heal_player' && aiFaction.hp <= 7){
+                            useMagic(card);
+                            addLog(`AI 使用 ${card.name}`);
+                            break;
+                        }
+                    }
+                    const equipIndex = aiFaction.hand.findIndex(c=>c.type==='equipment');
+                    if(equipIndex !== -1 && aiFaction.monsters.length > 0){
+                        equipMonster(aiFaction.monsters[0], aiFaction.hand[equipIndex]);
+                    }
+                }
+                // 进攻
+                const opp = getOpponentFaction();
+                aiFaction.monsters.forEach(m=>{
+                    if(m.hasAttacked || m.cantAttackTurns > 0) return;
+                    if(opp.monsters.length > 0){
+                        const target = opp.monsters[0];
+                        const dmg = Math.max(0, getMonsterAttack(m) - getMonsterDefense(target));
+                        target.currentDefense -= dmg;
+                        addLog(`AI 的 ${m.cardData.name} 攻击 ${target.cardData.name} 造成 ${dmg}`);
+                        if(getMonsterDefense(target) <= 0) destroyMonster(target, false);
+                    } else {
+                        const dmg = getMonsterAttack(m);
+                        opp.hp -= dmg;
+                        addLog(`AI 的 ${m.cardData.name} 直接攻击玩家，造成 ${dmg}`);
+                    }
+                    m.hasAttacked = true;
+                });
+                aiFaction.firstTurn = false;
+                if(!checkGameOver()){
+                    state.currentFaction = state.playerFaction;
+                    drawCards(getCurrentFaction(), 2);
+                    addLog('你的回合，抽2张牌');
+                }
+                renderAll();
+            }
+
+            // ==================== 菜单逻辑 ====================
+            const menuOverlay = document.getElementById('menu-overlay');
+            const factionSelector = document.getElementById('faction-selector');
+            document.getElementById('btn-single').addEventListener('click', ()=>{
+                state.mode = 'single';
+                factionSelector.style.display = 'flex';
+                factionSelector.innerHTML = `
+                    <p style="color:#ccc; margin-bottom:10px;">选择你的阵营：</p>
+                    <div class="faction-select">
+                        <button class="menu-btn cthulhu-btn" id="pick-cthulhu">🐙 克苏鲁</button>
+                        <button class="menu-btn pirate-btn" id="pick-pirate">🏴‍☠️ 海盗</button>
+                    </div>`;
+                document.getElementById('pick-cthulhu').addEventListener('click',()=> startGame('cthulhu'));
+                document.getElementById('pick-pirate').addEventListener('click',()=> startGame('pirate'));
+            });
+            document.getElementById('btn-multi').addEventListener('click', ()=>{
+                state.mode = 'multi';
+                state.playerFaction = null;
+                menuOverlay.classList.add('hidden');
+                document.getElementById('game-title').textContent = '👥 双人模式 · 轮流对战';
+                initGame();
+            });
+            function startGame(playerFaction){
+                state.playerFaction = playerFaction;
+                menuOverlay.classList.add('hidden');
+                document.getElementById('game-title').textContent = `🤖 单人模式 · 你：${playerFaction==='cthulhu'?'🐙克苏鲁':'🏴‍☠️海盗'}`;
+                initGame();
+            }
+            document.getElementById('btn-reset').addEventListener('click', ()=>{
+                menuOverlay.classList.remove('hidden');
+                factionSelector.style.display = 'none';
+                state.mode = null;
+                state.gameOver = true;
+                renderAll();
+            });
+            document.getElementById('btn-end-turn').addEventListener('click', endTurn);
+            document.getElementById('btn-cancel').addEventListener('click', cancelTarget);
+
+            // 初始显示菜单
+            renderAll();
+        })();
+    </script>
+</body>
+</html>
